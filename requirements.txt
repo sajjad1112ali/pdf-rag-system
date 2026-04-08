@@ -4,3 +4,4 @@ sentence-transformers
 pymupdf
 streamlit
 ollama
+langchain-text-splitters
