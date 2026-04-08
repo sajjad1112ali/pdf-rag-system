@@ -1,13 +1,18 @@
 import fitz
+
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from sentence_transformers import SentenceTransformer
+from langchain_community.vectorstores import FAISS
+from langchain_community.embeddings import HuggingFaceEmbeddings
+
+
+PDF_PATH = "data/sample.pdf"
+VECTOR_DB_PATH = "vectorstore"
 
 
 def extract_text_from_pdf(pdf_path):
     doc = fitz.open(pdf_path)
 
     text = ""
-
     for page in doc:
         text += page.get_text()
 
@@ -16,38 +21,34 @@ def extract_text_from_pdf(pdf_path):
 
 def chunk_text(text):
 
-    text_splitter = RecursiveCharacterTextSplitter(
+    splitter = RecursiveCharacterTextSplitter(
         chunk_size=500,
         chunk_overlap=100
     )
 
-    chunks = text_splitter.split_text(text)
-
-    return chunks
+    return splitter.split_text(text)
 
 
-def create_embeddings(chunks):
+def build_vector_db(chunks):
 
-    model = SentenceTransformer("all-MiniLM-L6-v2")
+    embeddings = HuggingFaceEmbeddings(
+        model_name="sentence-transformers/all-MiniLM-L6-v2"
+    )
 
-    embeddings = model.encode(chunks)
+    vectorstore = FAISS.from_texts(chunks, embeddings)
 
-    return embeddings
+    vectorstore.save_local(VECTOR_DB_PATH)
+
+    print("Vector database saved successfully!")
 
 
 if __name__ == "__main__":
 
-    pdf_path = "data/sample.pdf"
+    print("Reading PDF...")
+    text = extract_text_from_pdf(PDF_PATH)
 
-    extracted_text = extract_text_from_pdf(pdf_path)
+    print("Chunking...")
+    chunks = chunk_text(text)
 
-    chunks = chunk_text(extracted_text)
-
-    embeddings = create_embeddings(chunks)
-
-    print("\nTotal Chunks:", len(chunks))
-
-    print("\nEmbedding Vector Length:", len(embeddings[0]))
-
-    print("\nFirst Embedding Vector (first 10 values):")
-    print(embeddings[0][:10])
+    print("Creating vector database...")
+    build_vector_db(chunks)
